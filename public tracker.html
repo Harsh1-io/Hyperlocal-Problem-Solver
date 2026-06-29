@@ -388,7 +388,18 @@
             const stackIndex = counters[cat]++;
             
             let x = 0, y = 0;
-            const offset = stackIndex * 30;
+            //const offset = stackIndex * 30;
+            const categories = { street: 0, water: 0, waste: 0, infra: 0 };
+
+document.querySelectorAll('.image-card').forEach(el => {
+    const cat = el.getAttribute('data-cat');
+    if (cat in categories) categories[cat]++;
+});
+
+const highestCategory = Object.keys(categories).reduce((a, b) => categories[a] > categories[b] ? a : b);
+const highestCount = categories[highestCategory];
+
+            const offset = stackIndex * (36/highestCount);
 
             if (cat === 'street') y = -(180 + offset); 
             if (cat === 'water')  y = (180 + offset);  
