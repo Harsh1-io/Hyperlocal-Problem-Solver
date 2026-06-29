@@ -292,6 +292,11 @@
             <div class="action-zone">
                 <button class="btn-add" title="File New Report">
                     <span>+</span>
+                     <div class="upload-section" onclick="document.getElementById('imageInput').click()">
+        <p style="display:none">Click to upload or drag image here</p>
+        <input type="file" id="imageInput" accept="image/*" >
+
+    </div>
                 </button>
             </div>
         </aside>
@@ -357,6 +362,11 @@
             </section>
 
 <div class="cross-container" id="container"></div>
+<div class="card">
+<div id="status">Loading AI Model (First time may take a few seconds)...</div>
+        <img id="preview" alt="Upload preview">
+    <div id="result"></div>
+</div>
         </main>
     </div>
 <script>
@@ -413,6 +423,96 @@ const highestCount = categories[highestCategory];
             }, loopIndex * 1400); // Change 300 to a lower number for faster sequencing
         });
 </script>
+ <script type="module">
+       import {
+  pipeline,
+  env,
+} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers";
+
+        let classifier;
+        const statusDiv = document.getElementById('status');
+        const imageInput = document.getElementById('imageInput');
+        const preview = document.getElementById('preview');
+        const resultDiv = document.getElementById('result');
+
+        // Target infrastructure categories mapped to common ImageNet labels
+        const CATEGORY_MAP = {
+            'pothole': 'damaged street',
+            'street': 'damaged street',
+            'asphalt': 'damaged street',
+            'leak': 'water leakage',
+            'water': 'water leakage',
+            'pipe': 'water leakage',
+            'stream': 'water leakage',
+            'garbage': 'waste management',
+            'trash': 'waste management',
+            'waste': 'waste management',
+            'dump': 'waste management',
+            'bridge': 'public infrastructure',
+            'building': 'public infrastructure',
+            'structure': 'public infrastructure',
+            'road': 'public infrastructure'
+        };
+
+        // Initialize the local image classification pipeline
+        async function initAI() {
+            try {
+                // Using a hyper-lightweight MobileNetV4 model (~10MB) optimized for browsers
+                classifier = await pipeline('image-classification', 'Xenova/mobilenetv4_conv_small.e500_r224_in1k');
+                statusDiv.innerText = "AI Engine Ready. Please upload an image.";
+            } catch (err) {
+                statusDiv.innerText = "Failed to load local AI engine: " + err.message;
+            }
+        }
+
+        // Handle image uploading
+        imageInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file || !classifier) return;
+
+            // Show preview image
+            const imageUrl = URL.createObjectURL(file);
+            preview.src = imageUrl;
+            preview.style.display = 'block';
+            
+            statusDiv.innerText = 'Analyzing locally...';
+            resultDiv.style.display = 'none';
+
+            try {
+                // Run the local neural network execution loop
+                const output = await classifier(imageUrl);
+                
+                // Map the detected image features to your explicit application tags
+                let finalCategory = 'unknown/other public infrastructure';
+                let matched = false;
+
+                for (let prediction of output) {
+                    const label = prediction.label.toLowerCase();
+                    
+                    for (let key in CATEGORY_MAP) {
+                        if (label.includes(key)) {
+                            finalCategory = CATEGORY_MAP[key];
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (matched) break;
+                }
+
+                // Render output
+                resultDiv.innerText = `Detected Category: ${finalCategory}`;
+                resultDiv.className = 'success';
+                resultDiv.style.display = 'block';
+                statusDiv.innerText = `Done! Top raw AI guess was: "${output[0].label}"`;
+
+            } catch (error) {
+                statusDiv.innerText = `Classification error: ${error.message}`;
+            }
+        });
+
+        // Run setup
+        initAI();
+    </script>
 </body>
 </html>
 
